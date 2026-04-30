@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from .models import Call, AnalysisJob
 from .serializers import CallSerializer, AnalysisJobSerializer
 from .worker import dispatch_analysis
+from django.db import transaction
 
 
 class CallListCreateView(APIView):
@@ -22,7 +23,6 @@ class CallListCreateView(APIView):
 
 
 class AnalyseTriggerView(APIView):
-
     def post(self, request, call_id):
         try:
             call = Call.objects.get(id=call_id)
@@ -32,14 +32,29 @@ class AnalyseTriggerView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        job = AnalysisJob.objects.create(call=call)
-        dispatch_analysis(job.id)
+        with transaction.atomic():
+            active_job = (
+                AnalysisJob.objects
+                .select_for_update()
+                .filter(
+                    call=call,
+                    status__in=[AnalysisJob.Status.PENDING, AnalysisJob.Status.RUNNING]
+                ).first()
+            )
 
+            if active_job:
+                return Response(
+                    {"job_id": active_job.id, "status": active_job.status, "detail": "Analysis already in progress"},
+                    status=status.HTTP_200_OK
+                )
+
+            job = AnalysisJob.objects.create(call=call)
+
+        dispatch_analysis(job.id)
         return Response(
             {"job_id": job.id, "status": job.status},
             status=status.HTTP_202_ACCEPTED
         )
-
 
 class JobStatusView(APIView):
 
@@ -53,4 +68,18 @@ class JobStatusView(APIView):
             )
 
         serializer = AnalysisJobSerializer(job)
+        return Response(serializer.data)
+
+class CallJobsListView(APIView):
+    def get(self, request, call_id):
+        try:
+            call = Call.objects.get(id=call_id)
+        except Call.DoesNotExist:
+            return Response(
+                {"error": "Call not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        jobs = AnalysisJob.objects.filter(call=call)
+        serializer = AnalysisJobSerializer(jobs, many=True)
         return Response(serializer.data)

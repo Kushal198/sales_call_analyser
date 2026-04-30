@@ -24,9 +24,13 @@ class AnalysisJob(models.Model):
     error_message = models.TextField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    class Meta:
+        ordering = ['-created_at']
+
+
     def __str__(self):
         return f"Job {self.id} — {self.status}"
-        
+
 
 class CallAnalysis(models.Model):
     class Sentiment(models.TextChoices):
