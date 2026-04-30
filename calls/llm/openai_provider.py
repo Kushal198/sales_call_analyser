@@ -2,13 +2,14 @@
 from openai import OpenAI
 from .base import LLMProvider
 from calls.prompts import SYSTEM_PROMPT
+import json
 
 
 class OpenAIProvider(LLMProvider):
     def __init__(self, config) -> None:
         self.client = OpenAI(api_key=config.api_key)
         self.model = config.model
-        
+
         self.tool_schema = {
             "type": "function",
             "function": {
@@ -89,4 +90,4 @@ class OpenAIProvider(LLMProvider):
         )
 
         tool_call = response.choices[0].message.tool_calls[0]
-        return tool_call.function.arguments
+        return json.loads(tool_call.function.arguments)  # parse string → dict
