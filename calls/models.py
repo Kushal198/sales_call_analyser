@@ -23,9 +23,14 @@ class AnalysisJob(models.Model):
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
     error_message = models.TextField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['status']),
+            models.Index(fields=['created_at']),
+        ]
 
 
     def __str__(self):
@@ -61,6 +66,8 @@ class CallAnalysis(models.Model):
         choices=ManagerAction.choices,
         default=ManagerAction.NO_ACTION
     )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return f"Analysis for Job {self.job.id}"

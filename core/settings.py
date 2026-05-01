@@ -13,6 +13,8 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 from pathlib import Path
 import os
 from dotenv import load_dotenv
+from celery.schedules import crontab
+
 
 load_dotenv()
 
@@ -138,4 +140,11 @@ SPECTACULAR_SETTINGS = {
     'TITLE': 'Sales Call Analyser API',
     'DESCRIPTION': 'API for triggering and retrieving AI-powered sales call analysis.',
     'VERSION': '1.0.0',
+}
+
+CELERY_BEAT_SCHEDULE = {
+    'cleanup-stale-jobs': {
+        'task': 'calls.tasks.cleanup_stale_jobs',
+        'schedule': 300.0,  # every 5 minutes
+    },
 }

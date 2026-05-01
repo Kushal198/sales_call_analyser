@@ -31,16 +31,19 @@ class CallAnalysisSerializer(serializers.ModelSerializer):
             'score',
             'score_rationale',
             'skill_gaps',
-            # rep-facing
             'action_items',
             'objections_raised',
             'missed_opportunities',
             'coaching_tips',
-            # manager-facing
             'deal_stage_assessment',
             'recommended_manager_action',
             'created_at',
         ]
+
+class AnalysisJobCreatedSerializer(serializers.Serializer):
+    job_id = serializers.UUIDField()
+    status = serializers.CharField()
+
 
 class AnalysisJobSerializer(serializers.ModelSerializer):
     analysis = CallAnalysisSerializer(read_only=True)

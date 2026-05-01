@@ -27,3 +27,15 @@ services:
       - .env
     depends_on:
       - redis
+
+  beat:
+    build: .
+    command: uv run celery -A core beat --loglevel=info
+    volumes:
+      - .:/app
+      - /app/.venv
+    env_file:
+      - .env
+    depends_on:
+      - redis
+      - worker

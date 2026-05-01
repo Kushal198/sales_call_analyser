@@ -2,6 +2,9 @@ import logging
 from celery import shared_task
 from .models import AnalysisJob, CallAnalysis
 from .llm import get_llm_provider
+from django.utils import timezone
+from datetime import timedelta
+import logging
 
 logger = logging.getLogger(__name__)
 
@@ -15,30 +18,20 @@ def format_transcript(transcript: list) -> str:
     return "\n".join(lines)
 
 
-def compute_talk_ratio(transcript: list) -> dict:
-    word_counts = {}
-    for turn in transcript:
-        speaker = turn['speaker']
-        text = turn['text']
-        word_counts[speaker] = word_counts.get(speaker, 0) + len(text.split())
-
-    total = sum(word_counts.values())
-    if total == 0:
-        return {}
-
-    return {speaker: round(count / total, 2) for speaker, count in word_counts.items()}
-
-
 @shared_task(bind=True, max_retries=3, default_retry_delay=5)
 def run_analysis(self, job_id):
     try:
-        job = AnalysisJob.objects.get(id=job_id)
+        job = AnalysisJob.objects.select_related('call').get(id=job_id)
+    except AnalysisJob.DoesNotExist:
+        logger.error(f"Job {job_id} not found")
+        return
+
+    try:
         job.status = AnalysisJob.Status.RUNNING
-        job.save()
+        job.save(update_fields=['status'])
 
         transcript = job.call.transcript
         formatted = format_transcript(transcript)
-        talk_ratio = compute_talk_ratio(transcript)
 
         provider = get_llm_provider()
         data = provider.analyse(formatted)
@@ -58,20 +51,54 @@ def run_analysis(self, job_id):
             recommended_manager_action=data['recommended_manager_action'],
             skill_gaps=data['skill_gaps'],
         )
-        job.status = AnalysisJob.Status.COMPLETED
-        job.save()
 
-    except AnalysisJob.DoesNotExist:
-        logger.error(f"Job {job_id} not found")
+        job.status = AnalysisJob.Status.COMPLETED
+        job.save(update_fields=['status'])
 
     except Exception as exc:
         logger.error(f"Job {job_id} failed: {exc}")
-        job.status = AnalysisJob.Status.FAILED
-        job.error_message = str(exc)
-        job.save()
-        raise self.retry(exc=exc)
+        try:
+            self.retry(exc=exc)
+        except self.MaxRetriesExceededError:
+            job.status = AnalysisJob.Status.FAILED
+            job.error_message = str(exc)
+            job.save(update_fields=['status', 'error_message'])
 
 
+@shared_task
+def cleanup_stale_jobs():
+    """
+    Periodic task to catch jobs stuck in PENDING or RUNNING.
+    
+    PENDING threshold — job was never picked up by a worker.
+    RUNNING threshold — worker died mid-execution.
+    
+    We use updated_at not created_at because a job could legitimately
+    sit in PENDING briefly before being picked up. updated_at tells us
+    when the state last changed — more accurate than when the job was created.
+    """
+    threshold = timezone.now() - timedelta(minutes=10)
+
+    stale_jobs = AnalysisJob.objects.filter(
+        status__in=[
+            AnalysisJob.Status.PENDING,
+            AnalysisJob.Status.RUNNING
+        ],
+        updated_at__lt=threshold
+    )
+
+    count = stale_jobs.count()
+
+    if count == 0:
+        logger.info("No stale jobs found")
+        return
+
+    stale_jobs.update(
+        status=AnalysisJob.Status.FAILED,
+        error_message="Job timed out — worker likely crashed or queue backed up"
+    )
+
+    logger.info(f"Cleaned up {count} stale jobs")
 
 def dispatch_analysis(job_id):
     run_analysis.delay(str(job_id))
