@@ -33,22 +33,34 @@ class AnalysisJob(models.Model):
 
 
 class CallAnalysis(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     class Sentiment(models.TextChoices):
         POSITIVE = 'positive'
         NEUTRAL = 'neutral'
         NEGATIVE = 'negative'
+    
+    class ManagerAction(models.TextChoices):
+        NO_ACTION = 'no_action', 'No Action'
+        REVIEW_WITH_REP = 'review_with_rep', 'Review With Rep'
+        FLAG_FOR_PIPELINE = 'flag_for_pipeline_review', 'Flag for Pipeline Review'
 
     job = models.OneToOneField(AnalysisJob, on_delete=models.CASCADE, related_name='analysis')
     summary = models.TextField()
     sentiment = models.CharField(max_length=20, choices=Sentiment.choices)
     key_topics = models.JSONField(default=list)
-    action_items = models.JSONField(default=list)
-    objections_raised = models.JSONField(default=list)
-    next_steps = models.TextField()
-    talk_ratio = models.JSONField(default=dict)
     score = models.IntegerField()
     score_rationale = models.TextField()
-    created_at = models.DateTimeField(auto_now_add=True)
+    skill_gaps = models.JSONField(default=list)  # ["objection handling", "discovery questioning"]
+    action_items = models.JSONField(default=list)
+    objections_raised = models.JSONField(default=list)
+    missed_opportunities = models.JSONField(default=list)
+    coaching_tips = models.JSONField(default=list)
+    deal_stage_assessment = models.CharField(max_length=255, blank=True)
+    recommended_manager_action = models.CharField(
+        max_length=50,
+        choices=ManagerAction.choices,
+        default=ManagerAction.NO_ACTION
+    )
 
     def __str__(self):
         return f"Analysis for Job {self.job.id}"

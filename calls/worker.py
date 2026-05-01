@@ -48,14 +48,16 @@ def run_analysis(self, job_id):
             summary=data['summary'],
             sentiment=data['sentiment'],
             key_topics=data['key_topics'],
-            action_items=data['action_items'],
-            objections_raised=data['objections_raised'],
-            next_steps=data['next_steps'],
-            talk_ratio=talk_ratio,
             score=data['score'],
             score_rationale=data['score_rationale'],
+            action_items=data['action_items'],
+            objections_raised=data['objections_raised'],
+            missed_opportunities=data['missed_opportunities'],
+            coaching_tips=data['coaching_tips'],
+            deal_stage_assessment=data['deal_stage_assessment'],
+            recommended_manager_action=data['recommended_manager_action'],
+            skill_gaps=data['skill_gaps'],
         )
-
         job.status = AnalysisJob.Status.COMPLETED
         job.save()
 
@@ -64,12 +66,11 @@ def run_analysis(self, job_id):
 
     except Exception as exc:
         logger.error(f"Job {job_id} failed: {exc}")
-        try:
-            self.retry(exc=exc)
-        except self.MaxRetriesExceededError:
-            job.status = AnalysisJob.Status.FAILED
-            job.error_message = str(exc)
-            job.save()
+        job.status = AnalysisJob.Status.FAILED
+        job.error_message = str(exc)
+        job.save()
+        raise self.retry(exc=exc)
+
 
 
 def dispatch_analysis(job_id):

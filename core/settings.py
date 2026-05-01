@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'django_celery_results',
+    'drf_spectacular',
     'calls',    
 ]
 
@@ -128,3 +129,13 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+
+REST_FRAMEWORK = {
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+}
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'Sales Call Analyser API',
+    'DESCRIPTION': 'API for triggering and retrieving AI-powered sales call analysis.',
+    'VERSION': '1.0.0',
+}
