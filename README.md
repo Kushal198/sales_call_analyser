@@ -72,12 +72,27 @@ This starts four services:
 docker compose exec web uv run python manage.py migrate
 ```
 
-### 5. Explore the API
+### 5. Seed sample calls
+
+```bash
+docker compose exec web uv run python manage.py seed_calls
+```
+
+This creates 3 sample calls — a strong call, an average call, and a poor call.
+Copy any `id` from the output to trigger analysis against.
+
+### 6. Trigger analysis
+
+```bash
+curl -X POST http://localhost:8000/api/calls/{id}/analyse/
+```
+
+### 7. Explore the API
 
 Interactive docs available at:
 
 ```
-http://localhost:800/api/docs/
+http://localhost:8000/api/docs/
 ```
 
 ---
@@ -152,7 +167,6 @@ Poll until `status` is `completed` or `failed`. While pending or running, `analy
     "summary": "Rep engaged the prospect with solid opening questions but moved off the budget concern too quickly without qualifying it.",
     "sentiment": "neutral",
     "key_topics": ["CRM reporting", "pricing", "follow-up"],
-    "talk_ratio": { "rep": 58, "prospect": 42 },
     "score": 6,
     "score_rationale": "Good discovery opener but the budget objection was not handled — rep moved on without asking whether budget was a hard blocker or a soft concern.",
     "skill_gaps": ["objection handling", "pricing negotiation"],
@@ -238,7 +252,7 @@ STRICT RULES:
 ```
  
 This is not a complete defence — no prompt-level instruction is — but it raises the bar significantly. The model is told its role is narrow (sales coach, nothing else), and any instruction in the transcript is explicitly framed as dialogue to be analysed, not commands to be followed.
- 
+
 The tool use approach also helps here. Because the model is forced into a single structured output via `tool_choice`, there is less surface area for injected instructions to redirect behaviour compared to a free-form generation prompt.
  
 ---
@@ -275,7 +289,7 @@ The approach:
 
 ```python
 REP_FIELDS = [
-    'summary', 'sentiment', 'key_topics', 'talk_ratio',
+    'summary', 'sentiment', 'key_topics', 
     'score', 'score_rationale', 'skill_gaps',
     'action_items', 'objections_raised',
     'missed_opportunities', 'coaching_tips',
