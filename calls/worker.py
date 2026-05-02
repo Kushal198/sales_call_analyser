@@ -76,6 +76,10 @@ def cleanup_stale_jobs():
     sit in PENDING briefly before being picked up. updated_at tells us
     when the state last changed — more accurate than when the job was created.
     """
+    from django.db import connection
+    if 'calls_analysisjob' not in connection.introspection.table_names():
+        logger.warning("Tables not ready yet — skipping cleanup")
+        return
     threshold = timezone.now() - timedelta(minutes=10)
 
     stale_jobs = AnalysisJob.objects.filter(
