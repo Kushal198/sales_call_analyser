@@ -52,6 +52,9 @@ class Command(BaseCommand):
     help = 'Seed the database with sample sales calls'
 
     def handle(self, *args, **kwargs):
+        if Call.objects.exists():
+            self.stdout.write('Sample calls already exist — skipping seed.')
+            return
         for data in SAMPLE_CALLS:
             call = Call.objects.create(**data)
             self.stdout.write(f"Created call: {call.id} — {call.title}")

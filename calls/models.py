@@ -7,6 +7,9 @@ class Call(models.Model):
     title = models.CharField(max_length=255)
     transcript = models.JSONField()
     created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'call' 
 
     def __str__(self):
         return self.title
@@ -26,6 +29,7 @@ class AnalysisJob(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
+        db_table = 'analysis_job' 
         ordering = ['-created_at']
         indexes = [
             models.Index(fields=['status']),
@@ -39,6 +43,9 @@ class AnalysisJob(models.Model):
 
 class CallAnalysis(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    class Meta:
+        db_table = 'call_analysis' 
     class Sentiment(models.TextChoices):
         POSITIVE = 'positive'
         NEUTRAL = 'neutral'

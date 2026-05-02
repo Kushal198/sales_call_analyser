@@ -4,6 +4,7 @@ from .models import AnalysisJob, CallAnalysis
 from .llm import get_llm_provider
 from django.utils import timezone
 from datetime import timedelta
+from django.db import transaction
 import logging
 
 logger = logging.getLogger(__name__)
@@ -16,7 +17,6 @@ def format_transcript(transcript: list) -> str:
         text = turn['text']
         lines.append(f"{speaker}: {text}")
     return "\n".join(lines)
-
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=5)
 def run_analysis(self, job_id):
@@ -36,24 +36,24 @@ def run_analysis(self, job_id):
         provider = get_llm_provider()
         data = provider.analyse(formatted)
 
-        CallAnalysis.objects.create(
-            job=job,
-            summary=data['summary'],
-            sentiment=data['sentiment'],
-            key_topics=data['key_topics'],
-            score=data['score'],
-            score_rationale=data['score_rationale'],
-            action_items=data['action_items'],
-            objections_raised=data['objections_raised'],
-            missed_opportunities=data['missed_opportunities'],
-            coaching_tips=data['coaching_tips'],
-            deal_stage_assessment=data['deal_stage_assessment'],
-            recommended_manager_action=data['recommended_manager_action'],
-            skill_gaps=data['skill_gaps'],
-        )
-
-        job.status = AnalysisJob.Status.COMPLETED
-        job.save(update_fields=['status'])
+        with transaction.atomic():
+            CallAnalysis.objects.create(
+                job=job,
+                summary=data['summary'],
+                sentiment=data['sentiment'],
+                key_topics=data['key_topics'],
+                score=data['score'],
+                score_rationale=data['score_rationale'],
+                action_items=data['action_items'],
+                objections_raised=data['objections_raised'],
+                missed_opportunities=data['missed_opportunities'],
+                coaching_tips=data['coaching_tips'],
+                deal_stage_assessment=data['deal_stage_assessment'],
+                recommended_manager_action=data['recommended_manager_action'],
+                skill_gaps=data['skill_gaps'],
+            )
+            job.status = AnalysisJob.Status.COMPLETED
+            job.save(update_fields=['status'])
 
     except Exception as exc:
         logger.error(f"Job {job_id} failed: {exc}")
@@ -63,7 +63,6 @@ def run_analysis(self, job_id):
             job.status = AnalysisJob.Status.FAILED
             job.error_message = str(exc)
             job.save(update_fields=['status', 'error_message'])
-
 
 @shared_task
 def cleanup_stale_jobs():

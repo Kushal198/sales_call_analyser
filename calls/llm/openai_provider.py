@@ -83,7 +83,7 @@ class OpenAIProvider(LLMProvider):
                     },
                 },
                 "required": [
-                    "summary", "sentiment", "key_topics", "talk_ratio",
+                    "summary", "sentiment", "key_topics", 
                     "score", "score_rationale", "action_items", "objections_raised",
                     "missed_opportunities", "coaching_tips",
                     "deal_stage_assessment", "recommended_manager_action"

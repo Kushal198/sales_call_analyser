@@ -144,7 +144,7 @@ SPECTACULAR_SETTINGS = {
 
 CELERY_BEAT_SCHEDULE = {
     'cleanup-stale-jobs': {
-        'task': 'calls.tasks.cleanup_stale_jobs',
+        'task': 'calls.worker.cleanup_stale_jobs',
         'schedule': 300.0,  # every 5 minutes
     },
 }

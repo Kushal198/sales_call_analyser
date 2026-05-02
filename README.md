@@ -57,7 +57,7 @@ CELERY_RESULT_BACKEND=redis://redis:6379/0
 docker compose up --build
 ```
 
-This starts four services:
+This starts four services and automatically runs migrations and seeds sample calls on first run:
 
 | Service | Role |
 |---|---|
@@ -66,28 +66,13 @@ This starts four services:
 | `beat` | Celery beat scheduler — runs periodic cleanup tasks |
 | `redis` | Message broker between web and worker |
 
-### 4. Run migrations
-
-```bash
-docker compose exec web uv run python manage.py migrate
-```
-
-### 5. Seed sample calls
-
-```bash
-docker compose exec web uv run python manage.py seed_calls
-```
-
-This creates 3 sample calls — a strong call, an average call, and a poor call.
-Copy any `id` from the output to trigger analysis against.
-
-### 6. Trigger analysis
+### 4. Trigger analysis
 
 ```bash
 curl -X POST http://localhost:8000/api/calls/{id}/analyse/
 ```
 
-### 7. Explore the API
+### 5. Explore the API
 
 Interactive docs available at:
 
@@ -148,7 +133,7 @@ Completed and failed jobs do not block re-analysis. A fresh job is always create
 
 ---
 
-### Poll Job Status
+### Get Job Status & Results
 
 ```
 GET /api/jobs/{job_id}/
@@ -320,13 +305,14 @@ One deliberate product choice: `recommended_manager_action` and `deal_stage_asse
 - **Webhook support** — instead of polling `GET /api/jobs/{id}/`, clients register a callback URL and get notified on completion. More efficient than polling at any real volume
 - **Pagination** — `GET /api/calls/` and `GET /api/calls/{id}/jobs/` need cursor-based pagination before hitting any real volume
 - **Prompt versioning** — track which prompt version produced which analysis. As the prompt evolves you lose the ability to compare results across calls without knowing which prompt was used
-- **Seed command** — a `manage.py seed_calls` command that creates sample calls with realistic transcripts so evaluators and new developers can hit the ground running without manually creating data
 
 ---
 
 ## Switching LLM Provider
 
-The LLM layer uses an adapter pattern — swapping providers is a single environment variable change, no code changes needed.
+The LLM layer uses an abstract base class and factory pattern. `LLMProvider` defines the interface — any provider must implement `analyse()`. The factory reads `LLM_PROVIDER` from the environment and returns the correct implementation.
+
+Swapping providers is a single environment variable change:
 
 ```env
 # Use OpenAI

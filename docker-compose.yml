@@ -6,7 +6,6 @@ services:
 
   web:
     build: .
-    command: uv run python manage.py runserver 0.0.0.0:8000
     volumes:
       - .:/app
       - /app/.venv
