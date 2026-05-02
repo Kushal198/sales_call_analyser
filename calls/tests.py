@@ -4,7 +4,7 @@ from django.urls import reverse
 from rest_framework.test import APIClient
 from rest_framework import status
 from .models import Call, AnalysisJob, CallAnalysis
-from .worker import format_transcript, compute_talk_ratio
+from .worker import format_transcript
 
 
 VALID_TRANSCRIPT = [
@@ -20,11 +20,14 @@ MOCK_ANALYSIS = {
     "key_topics": ["CRM", "reporting"],
     "action_items": ["Send pricing breakdown"],
     "objections_raised": ["Budget is tight"],
-    "next_steps": "Rep to follow up on Friday",
+    "missed_opportunities": ["Rep moved on when prospect raised budget"],
+    "coaching_tips": ["Ask 'is budget the main blocker?' before moving on"],
     "score": 7,
     "score_rationale": "Good discovery but weak closing.",
+    "deal_stage_assessment": "Early stage, prospect interested but uncommitted.",
+    "recommended_manager_action": "review_with_rep",
+    "skill_gaps": ["objection handling"],
 }
-
 
 class CallCreateTests(TestCase):
 
@@ -172,8 +175,11 @@ class JobStatusTests(TestCase):
             key_topics=["pricing"],
             action_items=["Send doc"],
             objections_raised=["Too expensive"],
-            next_steps="Follow up Friday",
-            talk_ratio={"Rep": 0.6, "Prospect": 0.4},
+            missed_opportunities=["Rep moved on when prospect raised budget"],
+            coaching_tips=["Ask 'is budget the main blocker?' before moving on"],
+            deal_stage_assessment="Early stage, prospect interested but uncommitted.",
+            recommended_manager_action="review_with_rep",
+            skill_gaps=["objection handling"],
             score=8,
             score_rationale="Strong discovery."
         )
@@ -211,17 +217,6 @@ class WorkerUtilTests(TestCase):
         self.assertIn("Prospect: Sure", result)
         self.assertEqual(len(result.split('\n')), 4)
 
-    def test_compute_talk_ratio(self):
-        result = compute_talk_ratio(VALID_TRANSCRIPT)
-        self.assertIn('Rep', result)
-        self.assertIn('Prospect', result)
-        total = sum(result.values())
-        self.assertAlmostEqual(total, 1.0, places=1)
-
-    def test_compute_talk_ratio_empty(self):
-        result = compute_talk_ratio([])
-        self.assertEqual(result, {})
-
 
 class WorkerIntegrationTests(TestCase):
 
@@ -240,7 +235,7 @@ class WorkerIntegrationTests(TestCase):
         job = AnalysisJob.objects.create(call=self.call)
 
         from calls.worker import run_analysis
-        run_analysis(str(job.id))
+        run_analysis.apply(args=[str(job.id)], kwargs={}, retries=3)
 
         job.refresh_from_db()
         self.assertEqual(job.status, AnalysisJob.Status.COMPLETED)
@@ -257,10 +252,10 @@ class WorkerIntegrationTests(TestCase):
         job = AnalysisJob.objects.create(call=self.call)
 
         from calls.worker import run_analysis
-        try:
-            run_analysis(str(job.id))
-        except Exception:
-            pass
+        from celery.exceptions import MaxRetriesExceededError
+
+        with patch.object(run_analysis, 'retry', side_effect=MaxRetriesExceededError()):
+            run_analysis.apply(args=[str(job.id)])
 
         job.refresh_from_db()
         self.assertEqual(job.status, AnalysisJob.Status.FAILED)
@@ -270,6 +265,6 @@ class WorkerIntegrationTests(TestCase):
         from calls.worker import run_analysis
         # should not raise, just log
         try:
-            run_analysis('00000000-0000-0000-0000-000000000000')
+            run_analysis.apply(args=['00000000-0000-0000-0000-000000000000'])
         except Exception as e:
             self.fail(f"run_analysis raised unexpectedly: {e}")

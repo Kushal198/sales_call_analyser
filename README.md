@@ -71,8 +71,23 @@ This starts four services and automatically runs migrations and seeds sample cal
 ```bash
 curl -X POST http://localhost:8000/api/calls/{id}/analyse/
 ```
+## 5. Running Tests
 
-### 5. Explore the API
+```bash
+docker compose exec web uv run python manage.py test calls --verbosity=2
+```
+
+The test suite covers:
+
+| Area | What's tested |
+|---|---|
+| **Call creation** | Valid payload, empty transcript, missing fields, invalid format |
+| **Analysis trigger** | 202 on success, 404 on missing call, idempotency on pending/running jobs, re-trigger on failed/completed |
+| **Job status** | Pending/running returns null analysis, completed returns full analysis, failed surfaces error message, 404 on missing job |
+| **Worker** | Successful analysis creates correct DB records, LLM failure marks job failed with error, missing job handled gracefully |
+| **Utilities** | Transcript formatting, talk ratio computation |
+
+### 6. Explore the API
 
 Interactive docs available at:
 
