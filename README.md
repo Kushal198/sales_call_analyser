@@ -11,7 +11,7 @@ A backend API for analysing sales call transcripts using AI. Built with Python, 
 | **Django + DRF** | API framework |
 | **Celery + Redis** | Background job processing |
 | **SQLite** | Zero-config local database, easily swappable to Postgres |
-| **OpenAI / Anthropic** | Pluggable LLM provider via adapter pattern |
+| **OpenAI** | Pluggable LLM provider |
 | **Docker Compose** | Single command setup |
 
 ---
@@ -21,7 +21,7 @@ A backend API for analysing sales call transcripts using AI. Built with Python, 
 ### Prerequisites
 
 - Docker and Docker Compose
-- An OpenAI or Anthropic API key
+- An OpenAI API key
 
 ### 1. Clone the repo
 
