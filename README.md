@@ -26,8 +26,8 @@ A backend API for analysing sales call transcripts using AI. Built with Python, 
 ### 1. Clone the repo
 
 ```bash
-git clone <repo-url>
-cd sales-call-analyser
+git clone https://github.com/Kushal198/sales_call_analyser
+cd sales_call_analyser
 ```
 
 ### 2. Create your `.env` file
